@@ -1,0 +1,13 @@
+version: '0.1'
+services: 
+  https-server:
+    image: httpd:latest
+    volumes:
+      - ./:/usr/local/apache2/htdocs/
+    ports:
+      - 80:80
+  wasm-compiler:
+    build: .
+    volumes:
+      - ./:/usr/src/myapp
+      - /usr/src/myapp/target
