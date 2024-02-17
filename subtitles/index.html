@@ -1,9 +1,31 @@
-<!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Subtitles</title>
-    <script type="module" src="./index.js"></script>
-  </head>
-  <body></body>
+<head>
+	<title>EBU-TT-D Example</title>
+	<link rel="stylesheet" href="css/subtitles.css">
+	<script type="module" src="./index.js?xx"></script>
+	<script type="text/javascript">
+		
+	</script>
+</head>
+<body>
+	<h1>CCMA EBU-TT-D Subtitles parser</h1>
+	<!-- Container for video and subtitles -->
+	<div class="subtitles-container" style="width:640px;height:360px;background-color:black;position:relative;">
+		<!-- Video -->
+		<video width="100%" height="100%" controls></video>
+		<!-- End video -->
+		<!-- Subtitles layer -->
+		<div id="subtitles" class="subtitles"></div>
+		<!-- End subtitles layer -->
+	</div>
+	<!-- End container for video and subtitles -->
+
+	<!-- Form for change the video and subtitle -->
+	<form action="#">
+	  Video: <input type="text" name="video" value=""><br>
+	  Subtitles: <input type="text" name="subtitles" value=""><br>
+	  <input type="submit" value="Submit">
+	</form>
+	<!-- End form for change the video and subtitle -->
+</body>
 </html>
