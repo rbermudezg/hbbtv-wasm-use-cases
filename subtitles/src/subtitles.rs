@@ -1,10 +1,13 @@
-use std::borrow::Borrow;
-
 use quick_xml::de::from_str;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
+
+use self::cuepoints::Cuepoints;
+mod cuepoints;
 
 #[wasm_bindgen]
 extern "C" {
@@ -138,9 +141,9 @@ pub struct P {
     #[serde(rename = "@region")]
     pub region: Option<String>,
     #[serde(rename = "@begin")]
-    pub begin: Option<String>,
+    pub begin: String,
     #[serde(rename = "@end")]
-    pub end: Option<String>,
+    pub end: String,
     #[serde(rename = "$value")]
     children: Option<Vec<Choice>>,
 }
@@ -164,38 +167,82 @@ pub struct Span {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Br {}
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Subtitles {}
+fn time_to_ms(time: &str) -> Result<i32, String> {
+    let blocks: Vec<&str> = time.split(':').collect();
+    if blocks.len() != 3 {
+        return Err("Format de temps incorrecte".to_string());
+    }
+
+    let hours = blocks[0]
+        .parse::<i32>()
+        .map_err(|_| "Error en parsejar les hores".to_string())?;
+    let minutes = blocks[1]
+        .parse::<i32>()
+        .map_err(|_| "Error en parsejar els minuts".to_string())?;
+
+    let seconds_block: Vec<&str> = blocks[2].split('.').collect();
+    let seconds = seconds_block[0]
+        .parse::<i32>()
+        .map_err(|_| "Error en parsejar els segons".to_string())?;
+
+    let mut ms = (hours * 3600 + minutes * 60 + seconds) * 1000;
+
+    if seconds_block.len() > 1 {
+        let frames = seconds_block[1]
+            .parse::<i32>()
+            .map_err(|_| "Error en parsejar els mil·lisegons".to_string())?;
+        ms += frames;
+    }
+
+    Ok(ms)
+}
+
+pub struct SubtilesAction {
+    index: usize,
+    is_show_action: bool,
+}
+
+pub struct Subtitles {
+    pub tt: Option<TT>,
+    pub cuepoints: cuepoints::Cuepoints,
+    pub cuepoint_to_subtitles_action: HashMap<String, SubtilesAction>,
+}
 
 impl Subtitles {
     pub fn new() -> Subtitles {
-        Subtitles {}
+        Subtitles {
+            tt: None,
+            cuepoints: cuepoints::Cuepoints::new(),
+            cuepoint_to_subtitles_action: HashMap::new(),
+        }
     }
 
     pub fn load(&mut self, xml: &str) {
         //log(&format!("hola? {}", xml));
-        let object: TT = from_str(xml).unwrap();
+        self.tt = from_str(xml).unwrap();
+        self.add_cuepoints();
+        self.update_subtitles_for_ms(5600);
         //let object: TT = from_str(&xml).unwrap();
 
-        log(&format!("object {}", object.body.div.p.len()));
-        for (index, p) in object.body.div.p.iter().enumerate() {
-            let x = Vec::new();
-            for (index, child) in p.children.as_ref().unwrap_or(&x).iter().enumerate() {
-                if let Choice::Span(span) = child {
-                    log(&format!(
-                        "Flipa {}",
-                        span.text.as_ref().unwrap_or(&"".to_string())
-                    ));
-                } else if let Choice::Br(br) = child {
-                    log("no Flipa");
-                }
-                // if let Choice::Span(span) = child {
-                //     Some(span.style.clone())
-                // } else {
-                //     None
-                // }
-            }
-        }
+        // log(&format!("object {}", object.body.div.p.len()));
+        // for (index, p) in object.body.div.p.iter().enumerate() {
+        //     let x = Vec::new();
+        //     for (index, child) in p.children.as_ref().unwrap_or(&x).iter().enumerate() {
+        //         if let Choice::Span(span) = child {
+        //             log(&format!(
+        //                 "Flipa {}",
+        //                 span.text.as_ref().unwrap_or(&"".to_string())
+        //             ));
+        //         } else if let Choice::Br(br) = child {
+        //             log("no Flipa");
+        //         }
+        //         // if let Choice::Span(span) = child {
+        //         //     Some(span.style.clone())
+        //         // } else {
+        //         //     None
+        //         // }
+        //     }
+        // }
 
         //log(&format!("object {}", object.name_attr));
 
@@ -242,5 +289,79 @@ impl Subtitles {
             buf.clear();
         }
         */
+    }
+    fn add_cuepoints(&mut self) {
+        if (self.tt.is_some()) {
+            for (index, p) in self.tt.as_ref().unwrap().body.div.p.iter().enumerate() {
+                let in_key = format!("in-{}", p.id);
+                let in_cuepoint = cuepoints::Cuepoint {
+                    id: in_key.clone(),
+                    ms: time_to_ms(&p.begin).unwrap_or(-1),
+                    timestopass: 0,
+                    callback: None,
+                    negativemargin: None,
+                    positivemargin: None,
+                    once: false,
+                };
+                self.cuepoints.add_cuepoint(in_cuepoint);
+                self.cuepoint_to_subtitles_action.insert(
+                    in_key,
+                    SubtilesAction {
+                        index: index,
+                        is_show_action: true,
+                    },
+                );
+
+                let out_key = format!("out-{}", p.id);
+                let out_cuepoint = cuepoints::Cuepoint {
+                    id: out_key.clone(),
+                    ms: time_to_ms(&p.end).unwrap_or(-1),
+                    timestopass: 0,
+                    callback: None,
+                    negativemargin: None,
+                    positivemargin: None,
+                    once: false,
+                };
+                self.cuepoints.add_cuepoint(out_cuepoint);
+                self.cuepoint_to_subtitles_action.insert(
+                    out_key,
+                    SubtilesAction {
+                        index: index,
+                        is_show_action: false,
+                    },
+                );
+            }
+        }
+    }
+    fn update_subtitles_for_ms(&mut self, ms: i32) {
+        let cues = self.cuepoints.get_cuepoints_by_time(ms);
+        for (_index, cue) in cues.iter().enumerate() {
+            let subtitle_action = self.cuepoint_to_subtitles_action.get(&cue.id);
+            if (subtitle_action.is_some()) {
+                let subtitle_action_unwrap = subtitle_action.unwrap();
+                let p = self
+                    .tt
+                    .as_ref()
+                    .unwrap()
+                    .body
+                    .div
+                    .p
+                    .get(subtitle_action_unwrap.index);
+                if (p.is_some()) {
+                    let p_unwrap = p.unwrap();
+                    if (subtitle_action_unwrap.is_show_action == true) {
+                        self.show_subtile(p_unwrap);
+                    } else {
+                        self.hide_subtile(p_unwrap);
+                    }
+                }
+            }
+        }
+    }
+    fn show_subtile(&self, p: &P) {
+        log(&format!("show {}", p.id));
+    }
+    fn hide_subtile(&self, p: &P) {
+        log(&format!("hide {}", p.id));
     }
 }

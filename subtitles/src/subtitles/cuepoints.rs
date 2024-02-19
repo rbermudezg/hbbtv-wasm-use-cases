@@ -42,12 +42,12 @@ const GLOBAL_CONFIGURATION: GlobalConfiguration = GlobalConfiguration {
 };
 
 pub struct Cuepoint {
-    pub id: u32,
+    pub id: String,
     pub ms: i32,
     pub timestopass: i32,
     pub negativemargin: Option<i32>,
     pub positivemargin: Option<i32>,
-    pub callback: Box<dyn Fn(i32, &Cuepoint)>,
+    pub callback: Option<Box<dyn Fn(i32, &Cuepoint)>>,
     pub once: bool,
 }
 
@@ -103,8 +103,8 @@ impl Cuepoints {
                 if cue.once {
                     to_remove_indices.push(index);
                 }
-                log(&format!("ms {} {}", ms, cue.id));
-                (cue.callback)(ms, cue);
+                //log(&format!("ms {} {}", ms, cue.id));
+                //(cue.callback)(ms, cue);
             }
         }
 
