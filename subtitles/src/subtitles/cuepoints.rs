@@ -47,7 +47,7 @@ pub struct Cuepoint {
     pub timestopass: i32,
     pub negativemargin: Option<i32>,
     pub positivemargin: Option<i32>,
-    pub callback: Option<Box<dyn Fn(i32, &Cuepoint)>>,
+    //pub callback: Option<Box<dyn Fn(i32, &Cuepoint)>>,
     pub once: bool,
 }
 
@@ -77,13 +77,19 @@ impl Cuepoints {
     pub fn get_cuepoints_by_time(&self, ms: i32) -> Vec<&Cuepoint> {
         let mut found = Vec::new();
         for cuepoint in &self.cuepoints {
-            let negativemargin = cuepoint
-                .negativemargin
-                .unwrap_or(GLOBAL_CONFIGURATION.cue_points_margin.negative);
-            let positivemargin = cuepoint
-                .positivemargin
-                .unwrap_or(GLOBAL_CONFIGURATION.cue_points_margin.positive);
-            if ms >= cuepoint.ms - negativemargin && ms <= cuepoint.ms + positivemargin {
+            let negativemargin = cuepoint.negativemargin.unwrap_or(
+                GLOBAL_CONFIGURATION
+                    .subtitles
+                    .begin_cue_points_margin
+                    .negative,
+            );
+            let positivemargin = cuepoint.positivemargin.unwrap_or(
+                GLOBAL_CONFIGURATION
+                    .subtitles
+                    .begin_cue_points_margin
+                    .positive,
+            );
+            if ms >= cuepoint.ms - negativemargin && ms < cuepoint.ms + positivemargin {
                 found.push(cuepoint);
             }
         }

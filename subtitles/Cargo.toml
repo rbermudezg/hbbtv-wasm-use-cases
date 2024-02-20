@@ -10,3 +10,4 @@ crate-type = ["cdylib"]
 wasm-bindgen = "0.2.91"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 serde = {version="1.0.196", features = ["derive"]}
+lazy_static = "1.4.0"

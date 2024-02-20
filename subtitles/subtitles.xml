@@ -20,11 +20,11 @@
       <tt:style xml:id="ss6" tts:fontFamily="Tiresias" tts:fontStyle="normal" tts:fontWeight="normal" tts:textDecoration="none" tts:color="#FFFFFF" tts:textAlign="center" tts:backgroundColor="transparent" />
     </tt:styling>
     <tt:layout>
-      <tt:region xml:id="r0" tts:origin="2,5% 4.00%" tts:extent="95% 76.00%" tts:padding="0%" tts:displayAlign="after" style="sr2" tts:writingMode="lrtb" tts:showBackground="whenActive" tts:overflow="visible" />
-      <tt:region xml:id="r1" tts:origin="2,5% 80.00%" tts:extent="82.50% 16.00%" tts:padding="0%" tts:displayAlign="after" style="sr2" tts:writingMode="lrtb" tts:showBackground="whenActive" tts:overflow="visible" />
-      <tt:region xml:id="r2" tts:origin="2,5% 80.00%" tts:extent="75.00% 16.00%" tts:padding="0%" tts:displayAlign="after" style="sr2" tts:writingMode="lrtb" tts:showBackground="whenActive" tts:overflow="visible" />
-      <tt:region xml:id="r3" tts:origin="2,5% 4.00%" tts:extent="95% 92.00%" tts:padding="0%" tts:displayAlign="after" style="sr2" tts:writingMode="lrtb" tts:showBackground="whenActive" tts:overflow="visible" />
-      <tt:region xml:id="r4" tts:origin="2,5% 4.00%" tts:extent="95% 84.00%" tts:padding="0%" tts:displayAlign="after" style="sr2" tts:writingMode="lrtb" tts:showBackground="whenActive" tts:overflow="visible" />
+      <tt:region xml:id="r0" tts:origin="2.5% 4.00%" tts:extent="95% 76.00%" tts:padding="0%" tts:displayAlign="after" style="sr2" tts:writingMode="lrtb" tts:showBackground="whenActive" tts:overflow="visible" />
+      <tt:region xml:id="r1" tts:origin="2.5% 80.00%" tts:extent="82.50% 16.00%" tts:padding="0%" tts:displayAlign="after" style="sr2" tts:writingMode="lrtb" tts:showBackground="whenActive" tts:overflow="visible" />
+      <tt:region xml:id="r2" tts:origin="2.5% 80.00%" tts:extent="75.00% 16.00%" tts:padding="0%" tts:displayAlign="after" style="sr2" tts:writingMode="lrtb" tts:showBackground="whenActive" tts:overflow="visible" />
+      <tt:region xml:id="r3" tts:origin="2.5% 4.00%" tts:extent="95% 92.00%" tts:padding="0%" tts:displayAlign="after" style="sr2" tts:writingMode="lrtb" tts:showBackground="whenActive" tts:overflow="visible" />
+      <tt:region xml:id="r4" tts:origin="2.5% 4.00%" tts:extent="95% 84.00%" tts:padding="0%" tts:displayAlign="after" style="sr2" tts:writingMode="lrtb" tts:showBackground="whenActive" tts:overflow="visible" />
       <tt:region xml:id="r5" tts:origin="47.50% 76.00%" tts:extent="52.50% 12.00%" tts:padding="0%" tts:displayAlign="after" style="sr2" tts:writingMode="lrtb" tts:showBackground="whenActive" tts:overflow="visible" />
     </tt:layout>
   </tt:head>

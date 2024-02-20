@@ -1,5 +1,7 @@
 // The wasm-pack uses wasm-bindgen to build and generate JavaScript binding file.
 // Import the wasm-bindgen crate.
+use lazy_static::lazy_static;
+use std::sync::Mutex;
 use wasm_bindgen::prelude::*;
 mod subtitles;
 
@@ -19,10 +21,21 @@ fn run() {
 }
  */
 
+lazy_static! {
+    static ref SUBTITLES: Mutex<subtitles::Subtitles> = Mutex::new(subtitles::Subtitles::new());
+}
+
 #[wasm_bindgen]
 pub fn parse(xml: &str) {
-    let mut subtitles = subtitles::Subtitles::new();
+    let mut subtitles = SUBTITLES.lock().unwrap();
     subtitles.load(xml);
+    return;
+}
+
+#[wasm_bindgen]
+pub fn updateSubtitlesForTimecode(ms: i32) {
+    let subtitles = SUBTITLES.lock().unwrap();
+    subtitles.update_subtitles_for_ms(ms);
     return;
 }
 

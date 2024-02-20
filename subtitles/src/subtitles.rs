@@ -1,12 +1,7 @@
 use quick_xml::de::from_str;
-use quick_xml::events::Event;
-use quick_xml::reader::Reader;
 use serde::{Deserialize, Serialize};
-use std::borrow::Borrow;
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Index};
 use wasm_bindgen::prelude::*;
-
-use self::cuepoints::Cuepoints;
 mod cuepoints;
 
 #[wasm_bindgen]
@@ -15,6 +10,17 @@ extern "C" {
     // `log(..)`
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
+
+    #[wasm_bindgen(js_namespace = console)]
+    fn time(s: &str);
+
+    #[wasm_bindgen(js_namespace = console)]
+    fn timeEnd(s: &str);
+
+    #[wasm_bindgen()]
+    fn showSubtitle(s: &str, text: &str);
+    fn hideSubtitle(s: &str);
+    fn existSubtitle(s: &str) -> bool;
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -84,6 +90,8 @@ pub struct Style {
     pub id: String,
     #[serde(rename = "@fontFamily")]
     pub font_family: Option<String>,
+    #[serde(rename = "@fontSize")]
+    pub font_size: Option<String>,
     #[serde(rename = "@fontStyle")]
     pub font_style: Option<String>,
     #[serde(rename = "@fontWeight")]
@@ -122,15 +130,21 @@ pub struct Region {
     pub show_background: Option<String>,
     #[serde(rename = "@overflow")]
     pub overflow: Option<String>,
+    #[serde(rename = "@style")]
+    pub style: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Body {
+    #[serde(rename = "@style")]
+    pub style: Option<String>,
     pub div: Div,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Div {
+    #[serde(rename = "@style")]
+    pub style: Option<String>,
     pub p: Vec<P>,
 }
 
@@ -206,6 +220,8 @@ pub struct Subtitles {
     pub tt: Option<TT>,
     pub cuepoints: cuepoints::Cuepoints,
     pub cuepoint_to_subtitles_action: HashMap<String, SubtilesAction>,
+    pub styles_index: HashMap<String, usize>,
+    pub region_index: HashMap<String, usize>,
 }
 
 impl Subtitles {
@@ -214,6 +230,8 @@ impl Subtitles {
             tt: None,
             cuepoints: cuepoints::Cuepoints::new(),
             cuepoint_to_subtitles_action: HashMap::new(),
+            styles_index: HashMap::new(),
+            region_index: HashMap::new(),
         }
     }
 
@@ -221,7 +239,8 @@ impl Subtitles {
         //log(&format!("hola? {}", xml));
         self.tt = from_str(xml).unwrap();
         self.add_cuepoints();
-        self.update_subtitles_for_ms(5600);
+        self.get_styles();
+        self.get_regions();
         //let object: TT = from_str(&xml).unwrap();
 
         // log(&format!("object {}", object.body.div.p.len()));
@@ -290,6 +309,34 @@ impl Subtitles {
         }
         */
     }
+    fn get_styles(&mut self) {
+        for (index, s) in self
+            .tt
+            .as_ref()
+            .unwrap()
+            .head
+            .styling
+            .styles
+            .iter()
+            .enumerate()
+        {
+            self.styles_index.insert(s.id.clone(), index);
+        }
+    }
+    fn get_regions(&mut self) {
+        for (index, r) in self
+            .tt
+            .as_ref()
+            .unwrap()
+            .head
+            .layout
+            .regions
+            .iter()
+            .enumerate()
+        {
+            self.region_index.insert(r.id.clone(), index);
+        }
+    }
     fn add_cuepoints(&mut self) {
         if (self.tt.is_some()) {
             for (index, p) in self.tt.as_ref().unwrap().body.div.p.iter().enumerate() {
@@ -298,7 +345,7 @@ impl Subtitles {
                     id: in_key.clone(),
                     ms: time_to_ms(&p.begin).unwrap_or(-1),
                     timestopass: 0,
-                    callback: None,
+                    //callback: None,
                     negativemargin: None,
                     positivemargin: None,
                     once: false,
@@ -317,7 +364,7 @@ impl Subtitles {
                     id: out_key.clone(),
                     ms: time_to_ms(&p.end).unwrap_or(-1),
                     timestopass: 0,
-                    callback: None,
+                    //callback: None,
                     negativemargin: None,
                     positivemargin: None,
                     once: false,
@@ -333,7 +380,7 @@ impl Subtitles {
             }
         }
     }
-    fn update_subtitles_for_ms(&mut self, ms: i32) {
+    pub fn update_subtitles_for_ms(&self, ms: i32) {
         let cues = self.cuepoints.get_cuepoints_by_time(ms);
         for (_index, cue) in cues.iter().enumerate() {
             let subtitle_action = self.cuepoint_to_subtitles_action.get(&cue.id);
@@ -358,10 +405,311 @@ impl Subtitles {
             }
         }
     }
+    fn get_default_styles(&self) -> String {
+        let mut styles: Vec<&String> = Vec::new();
+        if (self.tt.is_some()) {
+            if (self.tt.as_ref().unwrap().body.style.is_some()) {
+                styles.push(self.tt.as_ref().unwrap().body.style.as_ref().unwrap());
+            }
+            if (self.tt.as_ref().unwrap().body.div.style.is_some()) {
+                styles.push(self.tt.as_ref().unwrap().body.div.style.as_ref().unwrap());
+            }
+        }
+        return styles.iter().map(|s| s.as_str()).collect();
+    }
+
+    fn get_region_styles(&self, region_id: &String) -> String {
+        let mut styles: Vec<String> = Vec::new();
+        if (self.tt.is_some()) {
+            let region_index = self.region_index.get(region_id);
+            if (region_index.is_some()) {
+                let region_index = region_index.unwrap().clone();
+                let region = self
+                    .tt
+                    .as_ref()
+                    .unwrap()
+                    .head
+                    .layout
+                    .regions
+                    .get(region_index);
+                if (region.is_some()) {
+                    let region = region.unwrap();
+                    if (region.origin.is_some()) {
+                        let region_splitted: Vec<&str> =
+                            region.origin.as_ref().unwrap().split(" ").collect();
+                        if region_splitted.len() == 2 {
+                            styles.push(format!("top:{}", region_splitted[0]));
+                            styles.push(format!("left:{}", region_splitted[1]));
+                        }
+                    }
+                    if (region.extent.is_some()) {
+                        let region_splitted: Vec<&str> =
+                            region.extent.as_ref().unwrap().split(" ").collect();
+                        if region_splitted.len() == 2 {
+                            styles.push(format!("width:{}", region_splitted[0]));
+                            styles.push(format!("height:{}", region_splitted[1]));
+                        }
+                    }
+                    if (region.style.is_some()) {
+                        let style_index = self.styles_index.get(region.style.as_ref().unwrap());
+                        if (style_index.is_some()) {
+                            let style_index = style_index.unwrap().clone();
+                            let style = self
+                                .tt
+                                .as_ref()
+                                .unwrap()
+                                .head
+                                .styling
+                                .styles
+                                .get(style_index);
+                            if (style.is_some()) {
+                                let style = style.unwrap();
+                                styles.push(format!(
+                                    "background-color:{}",
+                                    style
+                                        .background_color
+                                        .as_ref()
+                                        .unwrap_or(&"initial".to_string())
+                                ));
+                                styles.push(format!(
+                                    "font-family:{}",
+                                    style.font_family.as_ref().unwrap_or(&"initial".to_string())
+                                ));
+                                styles.push(format!(
+                                    "font-size:{}",
+                                    style.font_size.as_ref().unwrap_or(&"initial".to_string())
+                                ));
+                                styles.push(format!(
+                                    "font-style:{}",
+                                    style.font_style.as_ref().unwrap_or(&"initial".to_string())
+                                ));
+                                styles.push(format!(
+                                    "font-weight:{}",
+                                    style.font_weight.as_ref().unwrap_or(&"initial".to_string())
+                                ));
+                                styles.push(format!(
+                                    "text-align:{}",
+                                    style.text_align.as_ref().unwrap_or(&"initial".to_string())
+                                ));
+                                styles.push(format!(
+                                    "color:{}",
+                                    style.color.as_ref().unwrap_or(&"initial".to_string())
+                                ));
+                            }
+                        }
+                    }
+
+                    //style
+                }
+
+                /*
+                var ttsPositionArray = nodeValue.split(" "),
+                    top = ttsPositionArray[1],
+                    left = ttsPositionArray[0],
+                    height;
+                el.style.top = top;
+                el.style.left = left;
+                 */
+
+                // self.parse_tt_attributes("origin", region.origin);
+                // self.parse_tt_attributes("extent", region.extent);
+                // self.parse_tt_attributes("padding", region.padding);
+                // self.parse_tt_attributes("display_align", region.display_align);
+                // self.parse_tt_attributes("writing_mode", region.writing_mode);
+                // self.parse_tt_attributes("show_background", region.show_background);
+                // self.parse_tt_attributes("overflow", region.overflow);
+                // self.parse_tt_attributes("style", region.style);
+
+                //let style = self.parse_tt_attributes();
+                //styles.push(parse_tt_attributes
+            }
+        }
+        return styles.join(";");
+        //return styles.iter().map(|s| s.as_str()).collect();
+    }
+
+    fn get_rows_for_p(&self, p: &P) -> String {
+        let br_string = "<br/>".to_string();
+        let x = Vec::new();
+        let mut texts: Vec<String> = Vec::new();
+        for (index, child) in p.children.as_ref().unwrap_or(&x).iter().enumerate() {
+            //texts.push(self.tt.as_ref().unwrap().body.style.as_ref().unwrap());
+            if let Choice::Span(span) = child {
+                if (span.text.is_some()) {
+                    //span.text
+                    let styles = "";
+                    texts.push(format!(
+                        "<span class='span-subtitle' style='{}'>{}</span>",
+                        styles,
+                        span.text.as_ref().unwrap()
+                    ));
+                }
+            } else if let Choice::Br(br) = child {
+                texts.push(br_string.clone());
+            }
+        }
+        return texts.iter().map(|s| s.as_str()).collect();
+    }
+
+    fn parse_tt_attributes(&self, node_name: &str, node_value: &str) -> HashMap<String, String> {
+        let mut attributes = HashMap::new();
+
+        match node_name {
+            "ttp:cellResolution" => {
+                //let cell_resolution_array: Vec<&str> = node_value.split(" ").collect();
+                //attributes.insert("columns".to_string(), cell_resolution_array[0].to_string());
+                //attributes.insert("rows".to_string(), cell_resolution_array[1].to_string());
+            }
+            "tts:backgroundColor" | "tts:color" => {
+                let rgba_color = self.hex_to_rgba(node_value);
+                if (rgba_color.is_some()) {
+                    attributes.insert(node_name[4..].to_string(), rgba_color.unwrap());
+                }
+            }
+            "tts:fontFamily" | "tts:fontStyle" | "tts:fontWeight" | "tts:lineHeight"
+            | "tts:textDecoration" | "tts:textAlign" | "tts:overflow" => {
+                attributes.insert(node_name[4..].to_string(), node_value.to_string());
+            }
+            "tts:fontSize" => {
+                let font_size = node_value.to_string();
+                attributes.insert("fontSize".to_string(), font_size);
+            }
+            "tts:wrapOption" => {
+                attributes.insert(
+                    "whiteSpace".to_string(),
+                    if node_value == "wrap" {
+                        "normal".to_string()
+                    } else {
+                        "nowrap".to_string()
+                    },
+                );
+            }
+            _ => {}
+        }
+
+        attributes
+    }
+
     fn show_subtile(&self, p: &P) {
-        log(&format!("show {}", p.id));
+        if (self.tt.is_some()) {
+            if (existSubtitle(&p.id) == false) {
+                time("show subtitle");
+                let default_styles = self.get_default_styles();
+                let mut region_styles = "".to_string();
+                if (p.region.is_some() == true) {
+                    region_styles = self.get_region_styles(&p.region.as_ref().unwrap());
+                }
+                let text = self.get_rows_for_p(p);
+                let text = format!(
+                    "\
+                    <div data-test-id='default-style-wrapper' style='{}'>\
+                        <div class='regionContainer' data-test-id='region-style' style='{}' id='{}'>\
+                            <div class='displayAlign regionPadding'>
+                                <div class='paragraphContainer' data-test-id='paragraphContainer'>\
+                                    <div class='multiRowAlign'>\
+                                    {}\
+                                    </div>\
+                                </div>\
+                            </div>\
+                        </div>\
+                    </div>\
+                    ",
+                    default_styles, region_styles, p.id, text
+                );
+                showSubtitle(&p.id, &text);
+                timeEnd("show subtitle");
+            }
+        }
+
+        /*
+          var defaultStyleWrapper, paragraphContainer, regionContainer;
+
+          if (that.el.innerHTML.indexOf('id="' + subt.id + '"') !== -1) {
+            return;
+          }
+          defaultStyleWrapper = document.createElement("div");
+
+          _.each(
+            that.defaultStyles,
+            function (style) {
+              defaultStyleWrapper = that.applyTTMLStyleIdToHTMLElement(
+                defaultStyleWrapper,
+                style
+              );
+            },
+            that
+          );
+
+          paragraphContainer = document.createElement("div");
+          paragraphContainer.className = "paragraphContainer";
+          paragraphContainer.innerHTML =
+            '<div class="multiRowAlign">' + subt.text + "</div>";
+          paragraphContainer = that.applyTTMLStyleIdToHTMLElement(
+            paragraphContainer,
+            subt.style
+          );
+
+          regionContainer = document.createElement("div");
+          regionContainer.id = subt.id;
+          regionContainer.className = "regionContainer";
+          regionContainer.innerHTML =
+            '<div class="displayAlign regionPadding">' +
+            paragraphContainer.outerHTML +
+            "</div>";
+
+          if (that.personalizationEnabled) {
+            if (that.getBackgroundPersonalizedValue() === "active") {
+              regionContainer.className += " user-force-background";
+            } else {
+              regionContainer.className += " user-no-background";
+            }
+          }
+
+          regionContainer = that.applyTTMLRegionIdToHTMLElement(
+            regionContainer,
+            subt.region
+          );
+
+          defaultStyleWrapper.appendChild(regionContainer);
+          that.el.appendChild(defaultStyleWrapper);
+        };
+           */
+    }
+    fn hex_to_rgba(&self, hex: &str) -> Option<String> {
+        let hex = hex.trim_start_matches('#');
+
+        match hex.len() {
+            // Color HEX sense transparència
+            6 => {
+                if let (Ok(r), Ok(g), Ok(b)) = (
+                    u8::from_str_radix(&hex[0..2], 16),
+                    u8::from_str_radix(&hex[2..4], 16),
+                    u8::from_str_radix(&hex[4..6], 16),
+                ) {
+                    Some(format!("rgb({}, {}, {})", r, g, b))
+                } else {
+                    None
+                }
+            }
+            // Color HEX amb transparència
+            8 => {
+                if let (Ok(r), Ok(g), Ok(b), Ok(a)) = (
+                    u8::from_str_radix(&hex[0..2], 16),
+                    u8::from_str_radix(&hex[2..4], 16),
+                    u8::from_str_radix(&hex[4..6], 16),
+                    u8::from_str_radix(&hex[6..8], 16),
+                ) {
+                    let alfa_in_float = (a as f32 / 255.0).to_string();
+                    Some(format!("rgba({}, {}, {}, {})", r, g, b, alfa_in_float))
+                } else {
+                    None
+                }
+            }
+            // En cas que hex no tingui una longitud vàlida
+            _ => None,
+        }
     }
     fn hide_subtile(&self, p: &P) {
-        log(&format!("hide {}", p.id));
+        hideSubtitle(&p.id);
     }
 }
