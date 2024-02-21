@@ -23,6 +23,10 @@ const runWasm = async () => {
   await init();
   const res = await fetch("./subtitles.xml");
   const text = await res.text();
+  subtitles.setElementHeight(
+    subtitleContainerEl.offsetWidth,
+    subtitleContainerEl.offsetHeight
+  );
   console.time("parse");
   subtitles.parse(text);
   console.timeEnd("parse");
