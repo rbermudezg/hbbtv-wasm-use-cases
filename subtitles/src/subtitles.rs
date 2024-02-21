@@ -418,6 +418,57 @@ impl Subtitles {
         return styles.iter().map(|s| s.as_str()).collect();
     }
 
+    fn get_style_string(&self, style_id: &String) -> String {
+        let mut styles: Vec<String> = Vec::new();
+        let style_index = self.styles_index.get(style_id);
+        if (style_index.is_some()) {
+            let style_index = style_index.unwrap().clone();
+            let style = self
+                .tt
+                .as_ref()
+                .unwrap()
+                .head
+                .styling
+                .styles
+                .get(style_index);
+
+            if (style.is_some()) {
+                let style = style.unwrap();
+                if style.background_color.is_some() {
+                    styles.push(format!(
+                        "background-color:{}",
+                        style.background_color.as_ref().unwrap()
+                    ));
+                }
+                if (style.font_family.is_some()) {
+                    styles.push(format!(
+                        "font-family:{}",
+                        style.font_family.as_ref().unwrap()
+                    ));
+                }
+                if (style.font_size.is_some()) {
+                    styles.push(format!("font-size:{}", style.font_size.as_ref().unwrap()));
+                }
+                if (style.font_style.is_some()) {
+                    styles.push(format!("font-style:{}", style.font_style.as_ref().unwrap()));
+                }
+                if (style.font_weight.is_some()) {
+                    styles.push(format!(
+                        "font-weight:{}",
+                        style.font_weight.as_ref().unwrap()
+                    ));
+                }
+                if (style.text_align.is_some()) {
+                    styles.push(format!("text-align:{}", style.text_align.as_ref().unwrap()));
+                }
+                if (style.color.is_some()) {
+                    styles.push(format!("color:{}", style.color.as_ref().unwrap()));
+                }
+            }
+        }
+        return styles.join(";");
+    }
+
     fn get_region_styles(&self, region_id: &String) -> String {
         let mut styles: Vec<String> = Vec::new();
         if (self.tt.is_some()) {
@@ -438,8 +489,8 @@ impl Subtitles {
                         let region_splitted: Vec<&str> =
                             region.origin.as_ref().unwrap().split(" ").collect();
                         if region_splitted.len() == 2 {
-                            styles.push(format!("top:{}", region_splitted[0]));
-                            styles.push(format!("left:{}", region_splitted[1]));
+                            styles.push(format!("left:{}", region_splitted[0]));
+                            styles.push(format!("top:{}", region_splitted[1]));
                         }
                     }
                     if (region.extent.is_some()) {
@@ -451,52 +502,7 @@ impl Subtitles {
                         }
                     }
                     if (region.style.is_some()) {
-                        let style_index = self.styles_index.get(region.style.as_ref().unwrap());
-                        if (style_index.is_some()) {
-                            let style_index = style_index.unwrap().clone();
-                            let style = self
-                                .tt
-                                .as_ref()
-                                .unwrap()
-                                .head
-                                .styling
-                                .styles
-                                .get(style_index);
-                            if (style.is_some()) {
-                                let style = style.unwrap();
-                                styles.push(format!(
-                                    "background-color:{}",
-                                    style
-                                        .background_color
-                                        .as_ref()
-                                        .unwrap_or(&"initial".to_string())
-                                ));
-                                styles.push(format!(
-                                    "font-family:{}",
-                                    style.font_family.as_ref().unwrap_or(&"initial".to_string())
-                                ));
-                                styles.push(format!(
-                                    "font-size:{}",
-                                    style.font_size.as_ref().unwrap_or(&"initial".to_string())
-                                ));
-                                styles.push(format!(
-                                    "font-style:{}",
-                                    style.font_style.as_ref().unwrap_or(&"initial".to_string())
-                                ));
-                                styles.push(format!(
-                                    "font-weight:{}",
-                                    style.font_weight.as_ref().unwrap_or(&"initial".to_string())
-                                ));
-                                styles.push(format!(
-                                    "text-align:{}",
-                                    style.text_align.as_ref().unwrap_or(&"initial".to_string())
-                                ));
-                                styles.push(format!(
-                                    "color:{}",
-                                    style.color.as_ref().unwrap_or(&"initial".to_string())
-                                ));
-                            }
-                        }
+                        styles.push(self.get_style_string(region.style.as_ref().unwrap()));
                     }
 
                     //style
@@ -537,7 +543,8 @@ impl Subtitles {
             if let Choice::Span(span) = child {
                 if (span.text.is_some()) {
                     //span.text
-                    let styles = "";
+                    //let styles = self.get_style_string(style)
+                    let styles = self.get_style_string(&span.style);
                     texts.push(format!(
                         "<span class='span-subtitle' style='{}'>{}</span>",
                         styles,
